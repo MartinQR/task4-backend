@@ -1,9 +1,8 @@
 const express = require("express");
 const mysql = require("mysql2");
-const cors = require('cors');
+const cors = require("cors");
 require("dotenv").config();
 const userRoutes = require("./routes/userRoutes");
-
 
 const app = express();
 app.use(cors());
@@ -30,7 +29,7 @@ app.get("/", (req, res) => {
   res.send("Servidor funcionando");
 });
 
-// Conectar las rutas de usuarios
+// Connect user routes
 app.use("/api/users", userRoutes);
 
 app.use((req, res, next) => {
@@ -38,7 +37,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Iniciar el servidor
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
