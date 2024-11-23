@@ -38,9 +38,7 @@ exports.registerUser = async (req, res) => {
               .json({ message: "The email is already registered" });
           }
           //Handle other errors
-          return res
-            .status(500)
-            .json({ message: "Error registering user" });
+          return res.status(500).json({ message: "Error registering user" });
         }
         return res
           .status(201)
@@ -59,14 +57,11 @@ exports.loginUser = (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res
-      .status(400)
-      .json({ message: "Email and password are required" });
+    return res.status(400).json({ message: "Email and password are required" });
   }
 
   // Check if the email exists
   db.query(
-    
     // "SELECT * FROM users WHERE email = ?",
     "SELECT email, password FROM users WHERE email = ?",
     [email],
@@ -98,4 +93,24 @@ exports.loginUser = (req, res) => {
       res.status(200).json({ message: "Inicio de sesión exitoso", token });
     }
   );
+};
+
+//----------------------GET ALL USERS--------------------------------
+
+exports.getAllUsers = (req, res) => {
+  try {
+    const query = "SELECT * FROM users";
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error("Error fetching users:", err);
+        return res.status(500).json({ message: "Error fetching users" });
+      }
+
+      // Return all users as JSON
+      res.status(200).json(results);
+    });
+  } catch (error) {
+    console.error("Unexpected server error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
