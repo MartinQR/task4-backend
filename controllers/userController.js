@@ -16,28 +16,23 @@ const db = mysql.createConnection({
 exports.registerUser = async (req, res) => {
   const { email, password, first_name, last_name } = req.body;
 
-  // Validate that all necessary data is received
   if (!email || !password || !first_name || !last_name) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   try {
-    // Encrypt the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert new user
     db.query(
       "INSERT INTO users (email, password, first_name, last_name) VALUES (?, ?, ?, ?)",
       [email, hashedPassword, first_name, last_name],
       (err, results) => {
         if (err) {
-          //Handle duplicates error
           if (err.code === "ER_DUP_ENTRY") {
             return res
               .status(400)
               .json({ message: "The email is already registered" });
           }
-          //Handle other errors
           return res.status(500).json({ message: "Error registering user" });
         }
         return res
@@ -46,7 +41,6 @@ exports.registerUser = async (req, res) => {
       }
     );
   } catch (error) {
-    //Handle unexpected errors
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -60,10 +54,8 @@ exports.loginUser = (req, res) => {
     return res.status(400).json({ message: "Email and password are required" });
   }
 
-  // Check if the email exists
   db.query(
-    // "SELECT * FROM users WHERE email = ?",
-    "SELECT email, password FROM users WHERE email = ?",
+    "SELECT email, password, status FROM users WHERE email = ?",
     [email],
     async (err, results) => {
       if (err) {
@@ -75,8 +67,13 @@ exports.loginUser = (req, res) => {
       }
 
       const user = results[0];
+      console.log("User", user);
 
-      // Verify password
+      if (user.status === "blocked") {
+        return res.status(403).json({
+          message: "Your account is blocked. Please contact support.",
+        });
+      }
       const isMatch = await bcrypt.compare(password, user.password);
 
       if (!isMatch) {
@@ -90,7 +87,9 @@ exports.loginUser = (req, res) => {
         { expiresIn: "1h" }
       );
 
-      res.status(200).json({ message: "Inicio de sesión exitoso", token });
+      res
+        .status(200)
+        .json({ message: "Inicio de sesión Successful login", token });
     }
   );
 };
@@ -105,12 +104,133 @@ exports.getAllUsers = (req, res) => {
         console.error("Error fetching users:", err);
         return res.status(500).json({ message: "Error fetching users" });
       }
-
-      // Return all users as JSON
       res.status(200).json(results);
     });
   } catch (error) {
     console.error("Unexpected server error:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+//-----------------------DELETE ONE OR MORE USERS-----------------------//
+
+exports.deleteUsers = async (req, res) => {
+  const { ids } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "No IDs provided or invalid format" });
+  }
+
+  try {
+    let query = "";
+    let queryParams = [];
+    if (ids.join("") === "all") {
+      query = "DELETE FROM users";
+    } else {
+      const placeholders = ids.map(() => "?").join(",");
+      query = `DELETE FROM users WHERE id IN (${placeholders})`;
+      queryParams = ids;
+    }
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error deleting users" });
+      }
+
+      return res.status(200).json({
+        message:
+          ids.join("") === "all"
+            ? "All users deleted successfully"
+            : `${results.affectedRows} users deleted successfully`,
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ----------------------- BLOCK ONE OR MORE USERS ----------------------- //
+exports.blockUsers = async (req, res) => {
+  const { ids } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "No IDs provided or invalid format" });
+  }
+
+  try {
+    let query = "";
+    let queryParams = [];
+
+    if (ids.join("") === "all") {
+      query = "UPDATE users SET status = 'blocked'";
+    } else {
+      const placeholders = ids.map(() => "?").join(",");
+      query = `UPDATE users SET status = 'blocked' WHERE id IN (${placeholders})`;
+      queryParams = ids;
+    }
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error blocking users" });
+      }
+
+      return res.status(200).json({
+        message:
+          ids.join("") === "all"
+            ? "All users blocked successfully"
+            : `${results.affectedRows} users blocked successfully`,
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+//--------------------------UNBLOCK ONE OR MORE USERS-------------------//
+exports.unlockUsers = async (req, res) => {
+  const { ids } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res
+      .status(400)
+      .json({ message: "No IDs provided or invalid format" });
+  }
+
+  try {
+    let query = "";
+    let queryParams = [];
+
+    if (ids.join("") === "all") {
+      query = "UPDATE users SET status = 'active'";
+    } else {
+      const placeholders = ids.map(() => "?").join(",");
+      query = `UPDATE users SET status = 'active' WHERE id IN (${placeholders})`;
+      queryParams = ids;
+    }
+
+    db.query(query, queryParams, (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: "Error unblocking users" });
+      }
+
+      return res.status(200).json({
+        message:
+          ids.join("") === "all"
+            ? "All users unlocked successfully"
+            : `${results.affectedRows} users unlocked successfully`,
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
   }
 };

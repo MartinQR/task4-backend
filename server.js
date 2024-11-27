@@ -8,10 +8,9 @@ const app = express();
 app.use(cors());
 const port = process.env.PORT || 5000;
 
-// Middleware to parse the body
 app.use(express.json());
 
-// Configure the connection to the MySQL database
+// SQL Configuration
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -19,6 +18,7 @@ const db = mysql.createConnection({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
 });
+
 db.connect((err) => {
   if (err) {
     console.error("Error connecting to database:", err);
@@ -27,7 +27,7 @@ db.connect((err) => {
   console.log("Successful connection to database");
 });
 
-// Startup path to verify that the server is working
+// Startup path
 app.get("/", (req, res) => {
   res.send("Servidor funcionando");
 });
