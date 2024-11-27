@@ -55,7 +55,7 @@ exports.loginUser = (req, res) => {
   }
 
   db.query(
-    "SELECT email, password, status FROM users WHERE email = ?",
+    "SELECT id, email, password, status FROM users WHERE email = ?",
     [email],
     async (err, results) => {
       if (err) {
@@ -80,16 +80,27 @@ exports.loginUser = (req, res) => {
         return res.status(401).json({ message: "Incorrect credentials" });
       }
 
-      // Create a JWT token
-      const token = jwt.sign(
-        { id: user.id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+      db.query(
+        "UPDATE users SET last_login = NOW() WHERE id = ?",
+        [user.id],
+        (updateErr) => {
+          if (updateErr) {
+            console.error(updateErr);
+            return res
+              .status(500)
+              .json({ message: "Failed to update last login" });
+          }
 
-      res
-        .status(200)
-        .json({ message: "Inicio de sesión Successful login", token });
+          // Crear un token JWT después de actualizar last_login
+          const token = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+          );
+
+          return res.status(200).json({ message: "Successful login", token });
+        }
+      );
     }
   );
 };
